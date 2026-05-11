@@ -1,6 +1,4 @@
-// ЛАБ. 5: Навігація застосунку
-// ЛАБ. 6: Відстеження стану автентифікації Firebase
-
+// ЛАБ. 5 + 6: Навігація та відстеження стану автентифікації
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -8,18 +6,14 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { onAuthStateChanged } from 'firebase/auth';
 
-import { auth } from '../firebase/config';
+import { onAuthStateChanged, auth } from '../firebase/authService';
 import { setUser, setInitialized } from '../redux/authSlice';
 import { fetchExpenses, fetchBudgetLimits, clearBudgetData } from '../redux/budgetSlice';
 import COLORS from '../styles/colors';
 
-// Екрани автентифікації (ЛАБ. 6)
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
-
-// Головні екрани
 import HomeScreen from '../screens/HomeScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
 import HistoryScreen from '../screens/HistoryScreen';
@@ -28,7 +22,6 @@ import BudgetScreen from '../screens/BudgetScreen';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// ЛАБ. 5: Bottom Tab Navigator — головна навігація
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -43,10 +36,7 @@ function MainTabs() {
           paddingBottom: 8,
           paddingTop: 4,
         },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         headerShown: false,
       }}
     >
@@ -55,9 +45,7 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           tabBarLabel: 'Головна',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: 22 }}>{focused ? '🏠' : '🏡'}</Text>
-          ),
+          tabBarIcon: () => <Text style={{ fontSize: 22 }}>🏠</Text>,
         }}
       />
       <Tab.Screen
@@ -66,18 +54,12 @@ function MainTabs() {
         options={{
           tabBarLabel: 'Додати',
           tabBarIcon: ({ focused }) => (
-            <View
-              style={{
-                backgroundColor: focused ? COLORS.primary : COLORS.primaryLight,
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 4,
-              }}
-            >
-              <Text style={{ fontSize: 22, color: COLORS.white }}>+</Text>
+            <View style={{
+              backgroundColor: focused ? COLORS.primary : COLORS.primaryLight,
+              width: 44, height: 44, borderRadius: 22,
+              alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+            }}>
+              <Text style={{ fontSize: 26, color: focused ? COLORS.white : COLORS.primary, lineHeight: 32 }}>+</Text>
             </View>
           ),
         }}
@@ -87,9 +69,7 @@ function MainTabs() {
         component={HistoryScreen}
         options={{
           tabBarLabel: 'Витрати',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: 22 }}>{focused ? '📋' : '📄'}</Text>
-          ),
+          tabBarIcon: () => <Text style={{ fontSize: 22 }}>📋</Text>,
         }}
       />
       <Tab.Screen
@@ -97,21 +77,18 @@ function MainTabs() {
         component={BudgetScreen}
         options={{
           tabBarLabel: 'Бюджет',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: 22 }}>{focused ? '💰' : '💵'}</Text>
-          ),
+          tabBarIcon: () => <Text style={{ fontSize: 22 }}>💰</Text>,
         }}
       />
     </Tab.Navigator>
   );
 }
 
-// ЛАБ. 5: Головний навігатор — Stack
 export default function AppNavigator() {
   const dispatch = useDispatch();
   const { user, initialized } = useSelector((state) => state.auth);
 
-  // ЛАБ. 6: Постійна сесія — відстежуємо стан автентифікації
+  // ЛАБ. 6: Відстеження стану сесії
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
@@ -121,7 +98,6 @@ export default function AppNavigator() {
           name: firebaseUser.displayName || 'Користувач',
         };
         dispatch(setUser(userData));
-        // ЛАБ. 7: Завантажуємо дані після входу
         dispatch(fetchExpenses(firebaseUser.uid));
         dispatch(fetchBudgetLimits(firebaseUser.uid));
       } else {
@@ -130,11 +106,9 @@ export default function AppNavigator() {
         dispatch(setInitialized());
       }
     });
-
-    return () => unsubscribe(); // Відписка при розмонтуванні
+    return () => unsubscribe();
   }, []);
 
-  // Очікуємо перевірки сесії Firebase
   if (!initialized) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
@@ -148,10 +122,8 @@ export default function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
-          // Авторизований користувач → головні екрани
           <Stack.Screen name="Main" component={MainTabs} />
         ) : (
-          // Неавторизований → екрани входу (ЛАБ. 6)
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
