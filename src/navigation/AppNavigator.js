@@ -1,0 +1,163 @@
+// ЛАБ. 5: Навігація застосунку
+// ЛАБ. 6: Відстеження стану автентифікації Firebase
+
+import React, { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Text } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { onAuthStateChanged } from 'firebase/auth';
+
+import { auth } from '../firebase/config';
+import { setUser, setInitialized } from '../redux/authSlice';
+import { fetchExpenses, fetchBudgetLimits, clearBudgetData } from '../redux/budgetSlice';
+import COLORS from '../styles/colors';
+
+// Екрани автентифікації (ЛАБ. 6)
+import LoginScreen from '../screens/LoginScreen';
+import RegisterScreen from '../screens/RegisterScreen';
+
+// Головні екрани
+import HomeScreen from '../screens/HomeScreen';
+import AddExpenseScreen from '../screens/AddExpenseScreen';
+import HistoryScreen from '../screens/HistoryScreen';
+import BudgetScreen from '../screens/BudgetScreen';
+
+const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
+
+// ЛАБ. 5: Bottom Tab Navigator — головна навігація
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarStyle: {
+          backgroundColor: COLORS.white,
+          borderTopWidth: 1,
+          borderTopColor: COLORS.border,
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+        },
+        headerShown: false,
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          tabBarLabel: 'Головна',
+          tabBarIcon: ({ focused }) => (
+            <Text style={{ fontSize: 22 }}>{focused ? '🏠' : '🏡'}</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="AddExpense"
+        component={AddExpenseScreen}
+        options={{
+          tabBarLabel: 'Додати',
+          tabBarIcon: ({ focused }) => (
+            <View
+              style={{
+                backgroundColor: focused ? COLORS.primary : COLORS.primaryLight,
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 4,
+              }}
+            >
+              <Text style={{ fontSize: 22, color: COLORS.white }}>+</Text>
+            </View>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{
+          tabBarLabel: 'Витрати',
+          tabBarIcon: ({ focused }) => (
+            <Text style={{ fontSize: 22 }}>{focused ? '📋' : '📄'}</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Budget"
+        component={BudgetScreen}
+        options={{
+          tabBarLabel: 'Бюджет',
+          tabBarIcon: ({ focused }) => (
+            <Text style={{ fontSize: 22 }}>{focused ? '💰' : '💵'}</Text>
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+// ЛАБ. 5: Головний навігатор — Stack
+export default function AppNavigator() {
+  const dispatch = useDispatch();
+  const { user, initialized } = useSelector((state) => state.auth);
+
+  // ЛАБ. 6: Постійна сесія — відстежуємо стан автентифікації
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const userData = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: firebaseUser.displayName || 'Користувач',
+        };
+        dispatch(setUser(userData));
+        // ЛАБ. 7: Завантажуємо дані після входу
+        dispatch(fetchExpenses(firebaseUser.uid));
+        dispatch(fetchBudgetLimits(firebaseUser.uid));
+      } else {
+        dispatch(setUser(null));
+        dispatch(clearBudgetData());
+        dispatch(setInitialized());
+      }
+    });
+
+    return () => unsubscribe(); // Відписка при розмонтуванні
+  }, []);
+
+  // Очікуємо перевірки сесії Firebase
+  if (!initialized) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+        <Text style={{ fontSize: 48, marginBottom: 16 }}>💰</Text>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {user ? (
+          // Авторизований користувач → головні екрани
+          <Stack.Screen name="Main" component={MainTabs} />
+        ) : (
+          // Неавторизований → екрани входу (ЛАБ. 6)
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
